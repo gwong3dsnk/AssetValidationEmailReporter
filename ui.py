@@ -2,7 +2,7 @@ from tkinter import *
 import tkinter.ttk as ttk
 from tkinter.scrolledtext import ScrolledText
 from tkinterdnd2 import DND_FILES, TkinterDnD
-import sys
+import sys, parse_csv_data
 
 BG_COLOR = "#444444"
 LIGHT_GRAY_COLOR = "#eeeeee"
@@ -22,6 +22,8 @@ class ReporterUI:
     """
     def __init__(self):
         # Use TkinterDnD.Tk() to allow for drag and drop functionality onto widgets
+        self.path_list = []
+
         self.root_ui = TkinterDnD.Tk()
         self.root_ui.title("Asset Validation Email Reporter")
         self.root_ui.minsize(width=500, height=500)
@@ -106,10 +108,10 @@ class ReporterUI:
         self.csv_listbox.drop_target_register(DND_FILES)
         self.csv_listbox.dnd_bind("<<Drop>>", self.drop_inside_csv_listbox)
 
-        self.preview_graph_button = Button(text="Preview Graph(s)")
+        self.preview_graph_button = Button(text="Preview Graph(s)", command=self.send_to_parse_csv_data, state=DISABLED)
         self.preview_graph_button.grid(column=0, row=5, sticky="e")
 
-        self.clear_csv_listbox_button = Button(text="Clear CSV Listbox", command=self.clear_csv_listbox)
+        self.clear_csv_listbox_button = Button(text="Clear CSV Listbox", command=self.clear_csv_listbox, state=DISABLED)
         self.clear_csv_listbox_button.grid(column=2, row=5, sticky="w")
 
         email_addresses_listbox_label = Label(
@@ -184,6 +186,11 @@ class ReporterUI:
         sys.exit()
 
     def toggle_log_window_visibility(self):
+        """
+        Menu > Edit > Show Output Log
+        Makes the output log visible or invisible based on menu check state
+        :return: None
+        """
         if self.log_window_check_state.get():
             self.end_separator.grid(column=0, row=13, columnspan=3, sticky="we", pady=10)
             self.log_window.grid(column=0, row=14, columnspan=3, sticky="nsew")
@@ -197,8 +204,8 @@ class ReporterUI:
         file path string with { }.  It cleans the file names, appends them to a new list and returns the list.
         Example filename:
             "{C:/Users/Owner/Desktop/Python Study/first csv.csv} C:/Users/Owner/Desktop/PythonStudy/second_csv.csv"
-        :param filename (str): String representation of paths for all files dragged and dropped into listbox
-        :return clean_path_list (list): List of all paths from files that were dragged and dropped into listbox
+        :param filename: (str) String representation of paths for all files dragged and dropped into listbox
+        :return clean_path_list: (list) List of all paths from files that were dragged and dropped into listbox
         """
         size = len(filename)
         clean_path_list = []
@@ -228,15 +235,43 @@ class ReporterUI:
         return clean_path_list
 
     def drop_inside_csv_listbox(self, event):
+        """
+        Event called when a file drag-and-drop action is detected on the csv file listbox.
+        Sends the string from event.data to be parsed and adds the cleaned file paths, on return, to the listbox
+        :param event:TkinterDnD.DndEvent object
+        :return: None
+        """
         # The event variable is a string representation of the drag-and-dropped file paths.  File path str in data_old.
-        path_list = self.parse_dropped_files(event.data)
+        self.path_list = self.parse_dropped_files(event.data)
 
-        for path in path_list:
+        for path in self.path_list:
             if path.endswith(".csv"):
                 self.csv_listbox.insert(END, path)
             else:
                 print(f"{path} is not a csv file and will not be imported.")
                 continue
 
+        if self.csv_listbox.index(END) == 0:
+            print("No valid CSV files found to add.")
+        else:
+            print("Valid CSV files found.")
+            self.preview_graph_button.config(state=ACTIVE)
+            self.clear_csv_listbox_button.config(state=ACTIVE)
+
     def clear_csv_listbox(self):
+        """
+        Clears the csv file listbox and disables the related buttons
+        :return: None
+        """
         self.csv_listbox.delete(0, END)
+        self.preview_graph_button.config(state=DISABLED)
+        self.clear_csv_listbox_button.config(state=DISABLED)
+
+    def send_to_parse_csv_data(self):
+        """
+        Send the clean csv file paths one at a time to the ParseCsvData class to isolate and prepare the data
+        for graph generation.
+        :return: None
+        """
+        for csv_file_path in self.path_list:
+            parse_csv_data.ParseCsvData(csv_file_path)
