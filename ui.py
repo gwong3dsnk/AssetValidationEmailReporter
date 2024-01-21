@@ -1,3 +1,4 @@
+import os
 from tkinter import *
 import tkinter.ttk as ttk
 from tkinter.scrolledtext import ScrolledText
@@ -80,6 +81,9 @@ class ReporterUI:
             sticky="we",
             pady=10
         )
+
+        date_folders = self.obtain_date_folders()
+        date_folder_combobox = ttk.Combobox()
 
         csv_listbox_label = Label(
             text="STEP 1: Drag and drop 1 or more CSV files into the listbox below.",
@@ -184,6 +188,10 @@ class ReporterUI:
 
     def exit_app(self):
         sys.exit()
+
+    def obtain_date_folders(self):
+        # Use os.walk(path) to get a list of directories and files and make a list containing the directory names
+        pass
 
     def toggle_log_window_visibility(self):
         """
