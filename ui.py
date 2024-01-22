@@ -1,9 +1,9 @@
-import os
+import tkinter
 from tkinter import *
 import tkinter.ttk as ttk
 from tkinter.scrolledtext import ScrolledText
 from tkinterdnd2 import DND_FILES, TkinterDnD
-import sys, parse_csv_data
+import sys, email_report, generate_graph_data
 
 BG_COLOR = "#444444"
 LIGHT_GRAY_COLOR = "#eeeeee"
@@ -23,7 +23,9 @@ class ReporterUI:
     """
     def __init__(self):
         # Use TkinterDnD.Tk() to allow for drag and drop functionality onto widgets
-        self.path_list = []
+        self.csv_file_path_list = []
+        self.plot_file_path = ""
+        self.plot_file_paths = []
 
         self.root_ui = TkinterDnD.Tk()
         self.root_ui.title("Asset Validation Email Reporter")
@@ -40,7 +42,7 @@ class ReporterUI:
         menu_bar.add_cascade(label="File", menu=file_menu)
 
         edit_menu = Menu(menu_bar, tearoff=0)
-        edit_menu.add_command(label="Settings", command=self.do_nothing)
+        edit_menu.add_command(label="Settings", command=self.open_settings_window)
         self.log_window_check_state = IntVar()
         edit_menu.add_checkbutton(
             label="Show Output Log",
@@ -112,7 +114,8 @@ class ReporterUI:
         self.csv_listbox.drop_target_register(DND_FILES)
         self.csv_listbox.dnd_bind("<<Drop>>", self.drop_inside_csv_listbox)
 
-        self.preview_graph_button = Button(text="Preview Graph(s)", command=self.send_to_parse_csv_data, state=DISABLED)
+        self.preview_graph_button = Button(text="Preview Graph(s)", command=self.send_csv_to_generate_data,
+                                           state=DISABLED)
         self.preview_graph_button.grid(column=0, row=5, sticky="e")
 
         self.clear_csv_listbox_button = Button(text="Clear CSV Listbox", command=self.clear_csv_listbox, state=DISABLED)
@@ -172,7 +175,7 @@ class ReporterUI:
         )
         send_email_report_label.grid(column=0, row=11, columnspan=3)
 
-        self.send_email_report_button = Button(text="Send Email Report", bg="green")
+        self.send_email_report_button = Button(text="Send Email Report", bg="green", command=self.send_email_report)
         self.send_email_report_button.grid(column=0, row=12, columnspan=3, pady=10)
 
         self.end_separator = ttk.Separator(self.root_ui, orient=HORIZONTAL)
@@ -250,9 +253,9 @@ class ReporterUI:
         :return: None
         """
         # The event variable is a string representation of the drag-and-dropped file paths.  File path str in data_old.
-        self.path_list = self.parse_dropped_files(event.data)
+        self.csv_file_path_list = self.parse_dropped_files(event.data)
 
-        for path in self.path_list:
+        for path in self.csv_file_path_list:
             if path.endswith(".csv"):
                 self.csv_listbox.insert(END, path)
             else:
@@ -275,11 +278,99 @@ class ReporterUI:
         self.preview_graph_button.config(state=DISABLED)
         self.clear_csv_listbox_button.config(state=DISABLED)
 
-    def send_to_parse_csv_data(self):
+    def send_csv_to_generate_data(self):
         """
         Send the clean csv file paths one at a time to the ParseCsvData class to isolate and prepare the data
         for graph generation.
         :return: None
         """
-        for csv_file_path in self.path_list:
-            parse_csv_data.ParseCsvData(csv_file_path)
+        for csv_file_path in self.csv_file_path_list:
+            ggd = generate_graph_data.GenerateGraphData(csv_file_path)
+            self.plot_file_paths = ggd.generate_reports()
+
+    def send_email_report(self):
+        er = email_report.EmailReport(self.plot_file_paths)
+        er.setup_email_properties()
+        msg = er.create_email_body()
+        er.finalize_send_email(msg)
+
+    def open_settings_window(self):
+        """
+        Create new GUI window to house all Settings controls under the Edit menu bar item.
+        :return:
+        """
+        settings_root_ui = tkinter.Tk()
+        settings_root_ui.title("Settings")
+        settings_root_ui.minsize(width=250, height=200)
+        settings_root_ui.config(padx=20, pady=20, bg=BG_COLOR)
+
+        email_title = Label(
+            settings_root_ui,
+            text="Email Settings",
+            font=("Arial", 18, "bold"),
+            bg=BG_COLOR,
+            fg="#bcbcbc",
+        )
+        email_title.grid(column=0, row=0)
+
+        sender_email_address_label = Label(
+            settings_root_ui,
+            text="Sender Email Address:",
+            bg=BG_COLOR,
+            fg=LIGHT_GRAY_COLOR,
+            justify=LEFT
+        )
+        sender_email_address_label.grid(column=0, row=1)
+
+        sender_email_address_entry = Entry(settings_root_ui)
+        sender_email_address_entry.grid(column=1, row=1)
+
+        sender_email_password_label = Label(
+            settings_root_ui,
+            text="Sender Email Password:",
+            bg=BG_COLOR,
+            fg=LIGHT_GRAY_COLOR,
+            justify=LEFT
+        )
+        sender_email_password_label.grid(column=0, row=2)
+
+        sender_email_password_entry = Entry(settings_root_ui)
+        sender_email_password_entry.grid(column=1, row=2)
+
+        smtp_server_address_label = Label(
+            settings_root_ui,
+            text="SMTP Server Address:",
+            bg=BG_COLOR,
+            fg=LIGHT_GRAY_COLOR,
+            justify=LEFT
+        )
+        smtp_server_address_label.grid(column=0, row=3)
+
+        smtp_server_address_entry = Entry(settings_root_ui)
+        smtp_server_address_entry.grid(column=1, row=3)
+
+        smtp_server_port_label = Label(
+            settings_root_ui,
+            text="SMTP Server Port:",
+            bg=BG_COLOR,
+            fg=LIGHT_GRAY_COLOR,
+            justify=LEFT
+        )
+        smtp_server_port_label.grid(column=0, row=4)
+
+        smtp_server_port_entry = Entry(settings_root_ui)
+        smtp_server_port_entry.grid(column=1, row=4)
+
+        email_info_button = Button(settings_root_ui, text="Save Information", command=self.save_email_information)
+        email_info_button.grid(column=0, row=5, columnspan=2)
+
+        settings_root_ui.mainloop()
+
+    def save_email_information(self):
+        """
+        Save entered email information to json file - email_properties.json.
+        NOTE: This is just for this test.  In reality I would save the information to env. variables.
+        :return:
+        """
+        print("This button functionality has yet to be written.")
+        pass
