@@ -1,40 +1,58 @@
 import os, helper
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 
 class GenerateGraphs:
     def __init__(self, csv_file_path):
         self.csv_file_path = csv_file_path
-        self.csv_graph_path = f"{csv_file_path.rpartition('/')[0]}/Graphs"
-        self.csv_file_name = csv_file_path.rpartition("/")[2].replace(".csv", "")
+        self.csv_graph_path = helper.get_graph_path(self.csv_file_path)
+        self.csv_file_name = helper.get_capture_type(self.csv_file_path)
 
         # Verify that a Graph subdirectory exists under the current date directory.
-        helper.graph_directory_exists(f"{self.csv_graph_path}/{self.csv_file_name}")
+        helper.directory_exists(f"{self.csv_graph_path}/{self.csv_file_name}")
 
         # self.view_plots_in_explorer()
 
     def make_bar_plot(self, *args):
         """
         Called by generate_graph_data to make a bar plot.
-        :param args: data_type_name, x_axis_data, y_axis_data, bar_colors
-        :return:
+        :param args: data_type_name, plot_labels, plot_data, bar_colors
+        :return: None
         """
 
         fig, ax = plt.subplots()
+        plt.title(f"Asset {args[0]} Count")
+        # Set the data value within the bar container
         bar_values = ax.bar(args[1], args[2])
-        sns.barplot(x=args[1], y=args[2], hue=args[1], legend=False, palette=args[3])
+        ax.bar_label(bar_values, label_type="center")
+        ax.bar(x=args[1], height=args[2], color=args[3])
+        # Create the horizontal grid lines and set them behind the bar containers
         ax.grid(axis="y")
         ax.set(ylabel=f"{args[0]} Count", xlabel=f"{args[0]} Type", axisbelow=True)
-        ax.bar_label(bar_values)
-        plt.title(f"Asset {args[0]} Count")
 
         plot_file_path = self.save_plot_as_img(args[0])
+
+        # Clear the plot axis and figure to prepare for the next plot generation
+        plt.cla()
+        plt.clf()
         return plot_file_path
 
     def make_pie_chart(self, *args):
-        # TODO: Code this section
-        pass
+        """
+        Makes a pie chart
+        :param args: data_type_name, plot_labels, plot_data, bar_colors
+        :return: None
+        """
+        fig, ax = plt.subplots()
+        plt.title(args[0])
+        ax.pie(args[2], labels=args[1], colors=args[3], autopct="%1.1f%%")
+
+        plot_file_path = self.save_plot_as_img(args[0])
+
+        # Clear the plot axis and figure to prepare for the next plot generation
+        plt.cla()
+        plt.clf()
+        return plot_file_path
 
     def save_plot_as_img(self, data_type_name):
         plot_file_path = f"{self.csv_graph_path}/{self.csv_file_name}/{data_type_name}.jpg"

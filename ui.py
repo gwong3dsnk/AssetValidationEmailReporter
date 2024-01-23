@@ -1,31 +1,23 @@
+import os
 import tkinter
 from tkinter import *
 import tkinter.ttk as ttk
 from tkinter.scrolledtext import ScrolledText
 from tkinterdnd2 import DND_FILES, TkinterDnD
-import sys, email_report, generate_graph_data
+import sys, email_report, generate_graph_data, helper
 
 BG_COLOR = "#444444"
 LIGHT_GRAY_COLOR = "#eeeeee"
 
 
 class ReporterUI:
-    """
-    This class generates and displays the GUI
-    ...
-    Attributes
-    ----------
-    Pending
-
-    Methods
-    ----------
-    Pending
-    """
     def __init__(self):
         # Use TkinterDnD.Tk() to allow for drag and drop functionality onto widgets
         self.csv_file_path_list = []
+        self.csv_file_path = ""
         self.plot_file_path = ""
-        self.plot_file_paths = []
+        self.graph_paths_per_csv = []
+        self.working_dir = ""
 
         self.root_ui = TkinterDnD.Tk()
         self.root_ui.title("Asset Validation Email Reporter")
@@ -64,7 +56,7 @@ class ReporterUI:
             bg=BG_COLOR,
             fg="#bcbcbc",
         )
-        title_label.grid(column=0, row=0, columnspan=3)
+        title_label.grid(column=0, row=0, columnspan=7)
 
         summary_label = Label(
             text="This tool allows you to read in asset validation data_old in CSV format, generate visual graphs, "
@@ -74,25 +66,63 @@ class ReporterUI:
             wraplength=500,
             justify=LEFT
         )
-        summary_label.grid(column=0, row=1, columnspan=3)
+        summary_label.grid(column=0, row=1, columnspan=7)
 
         ttk.Separator(self.root_ui, orient=HORIZONTAL).grid(
             column=0,
             row=2,
-            columnspan=3,
+            columnspan=7,
             sticky="we",
             pady=10
         )
 
-        date_folders = self.obtain_date_folders()
-        date_folder_combobox = ttk.Combobox()
+        date_combobox_label = Label(text="Select Data Date:", bg=BG_COLOR, fg=LIGHT_GRAY_COLOR)
+        date_combobox_label.grid(column=0, row=3, sticky="w")
+
+        self.date_folders = self.obtain_date_folders()
+        self.selected_date = tkinter.StringVar()
+        self.date_folder_combobox = ttk.Combobox(
+            values=self.date_folders,
+            state="readonly",
+            textvariable=self.selected_date
+        )
+        self.date_folder_combobox.current(0)
+        self.date_folder_combobox.grid(column=1, row=3)
+        self.date_folder_combobox.bind("<<ComboboxSelected>>", self.date_folder_changed)
+
+        ttk.Separator(self.root_ui, orient=VERTICAL).grid(
+            column=2,
+            row=3,
+            sticky="nsw",
+            padx=5
+        )
+
+        self.new_preset_name_entry = Entry()
+        self.new_preset_name_entry.grid(column=3, row=3)
+
+        self.save_new_preset_button = Button(text="Save Preset")
+        self.save_new_preset_button.grid(column=4, row=3, padx=5)
+
+        load_preset_combobox = ttk.Combobox()
+        load_preset_combobox.grid(column=5, row=3)
+
+        self.delete_preset_button = Button(text="Delete Preset")
+        self.delete_preset_button.grid(column=6, row=3, padx=5)
+
+        abs_path_label = Label(text="Folder Path:", bg=BG_COLOR, fg=LIGHT_GRAY_COLOR)
+        abs_path_label.grid(column=0, row=4, sticky="w")
+
+        self.abs_path_display_label = Label(text="Path Displayed Here", bg=BG_COLOR, fg="#b6d7a8")
+        self.abs_path_display_label.grid(column=1, row=4, columnspan=5, sticky="w")
 
         csv_listbox_label = Label(
-            text="STEP 1: Drag and drop 1 or more CSV files into the listbox below.",
+            text="STEP 1: Drag and drop 1 or more CSV files into the listbox below or select a date from the "
+                 "dropdown menu above to load in all existing files for that date.",
             bg=BG_COLOR,
             fg=LIGHT_GRAY_COLOR,
+            wraplength=500
         )
-        csv_listbox_label.grid(column=0, row=3, columnspan=3)
+        csv_listbox_label.grid(column=0, row=5, columnspan=7)
 
         # Add a frame.  Establish scrollbar and listbox in frame.
         file_listbox_frame = Frame(self.root_ui)
@@ -109,63 +139,68 @@ class ReporterUI:
         )
         file_listbox_scrollbar.config(command=self.csv_listbox.xview)
         file_listbox_scrollbar.pack(side=BOTTOM, fill=X)
-        file_listbox_frame.grid(column=0, row=4, columnspan=3, pady=10)
+        file_listbox_frame.grid(column=0, row=6, columnspan=7, pady=10)
         self.csv_listbox.pack()
         self.csv_listbox.drop_target_register(DND_FILES)
         self.csv_listbox.dnd_bind("<<Drop>>", self.drop_inside_csv_listbox)
 
         self.preview_graph_button = Button(text="Preview Graph(s)", command=self.send_csv_to_generate_data,
                                            state=DISABLED)
-        self.preview_graph_button.grid(column=0, row=5, sticky="e")
+        self.preview_graph_button.grid(column=0, row=7, columnspan=5)
 
         self.clear_csv_listbox_button = Button(text="Clear CSV Listbox", command=self.clear_csv_listbox, state=DISABLED)
-        self.clear_csv_listbox_button.grid(column=2, row=5, sticky="w")
+        self.clear_csv_listbox_button.grid(column=2, row=7, columnspan=7)
 
         email_addresses_listbox_label = Label(
-            text="STEP 2: Add email addresses to the ADDRESS BOOK listbox.  Then add the intended recipients "
-                 "addresses to the RECIPIENT listbox.",
+            text="STEP 2: Add email addresses to the ADDRESS BOOK.  Then add the intended recipients "
+                 "addresses to the RECIPIENTS",
             bg=BG_COLOR,
             fg=LIGHT_GRAY_COLOR,
             wraplength=500,
             justify=LEFT
         )
-        email_addresses_listbox_label.grid(column=0, row=6, columnspan=3, pady=10)
+        email_addresses_listbox_label.grid(column=0, row=8, columnspan=7, pady=10)
+
+        # Set up a frame to contain the email address widgets
+        email_widgets_frame = Frame(self.root_ui, bg=BG_COLOR)
+        email_widgets_frame.grid(column=0, row=9, columnspan=7)
 
         address_book_label = Label(
+            email_widgets_frame,
             text="Address Book",
             bg=BG_COLOR,
             fg=LIGHT_GRAY_COLOR,
-            justify=CENTER,
             font=("Arial", 10, "bold"),
         )
-        address_book_label.grid(column=0, row=7)
+        address_book_label.grid(column=0, row=0)
 
-        address_book_label = Label(
+        recipients_label = Label(
+            email_widgets_frame,
             text="Recipient(s)",
             bg=BG_COLOR,
             fg=LIGHT_GRAY_COLOR,
-            justify=CENTER,
             font=("Arial", 10, "bold"),
         )
-        address_book_label.grid(column=2, row=7)
+        recipients_label.grid(column=2, row=0)
 
-        self.address_book_listbox = Listbox(height=4, width=25, selectmode=MULTIPLE)
-        self.address_book_listbox.grid(column=0, row=8, columnspan=1, rowspan=2, sticky="nsew", pady=10)
+        self.address_book_listbox = Listbox(email_widgets_frame, height=4, width=35, selectmode=MULTIPLE)
+        self.address_book_listbox.grid(column=0, row=1, rowspan=2, padx=10)
 
-        self.recipient_address_listbox = Listbox(height=4, width=25, selectmode=MULTIPLE)
-        self.recipient_address_listbox.grid(column=2, row=8, columnspan=1, rowspan=2, sticky="nsew", pady=10)
+        self.recipient_address_listbox = Listbox(email_widgets_frame, height=4, width=35, selectmode=MULTIPLE)
+        self.recipient_address_listbox.grid(column=2, row=1, rowspan=2, padx=10)
 
-        self.add_recipient_button = Button(text=">", width=4)
-        self.add_recipient_button.grid(column=1, row=8)
+        self.add_recipient_button = Button(email_widgets_frame, text=">")
+        self.add_recipient_button.grid(column=1, row=1)
 
-        self.remove_recipient_button = Button(text="<", width=4)
-        self.remove_recipient_button.grid(column=1, row=9)
+        self.remove_recipient_button = Button(email_widgets_frame, text="<")
+        self.remove_recipient_button.grid(column=1, row=2)
 
-        self.add_new_email_address_entry = Entry()
-        self.add_new_email_address_entry.grid(column=0, row=10, sticky="nsew")
+        self.add_new_email_address_entry = Entry(email_widgets_frame, width=35)
+        self.add_new_email_address_entry.insert(0, "Type Email and hit Enter to ADD to Book")
+        self.add_new_email_address_entry.grid(column=0, row=3, sticky="ns", pady=10)
 
-        self.clear_recipient_listbox_button = Button(text="Clear Recipients")
-        self.clear_recipient_listbox_button.grid(column=2, row=10)
+        self.clear_recipient_listbox_button = Button(email_widgets_frame, text="Clear Recipients")
+        self.clear_recipient_listbox_button.grid(column=2, row=3)
 
         send_email_report_label = Label(
             text="STEP 3: Send your email report to all recipients by clicking the button below.",
@@ -173,10 +208,10 @@ class ReporterUI:
             fg=LIGHT_GRAY_COLOR,
             justify=LEFT
         )
-        send_email_report_label.grid(column=0, row=11, columnspan=3)
+        send_email_report_label.grid(column=0, row=10, columnspan=7)
 
         self.send_email_report_button = Button(text="Send Email Report", bg="green", command=self.send_email_report)
-        self.send_email_report_button.grid(column=0, row=12, columnspan=3, pady=10)
+        self.send_email_report_button.grid(column=0, row=11, columnspan=7, pady=10)
 
         self.end_separator = ttk.Separator(self.root_ui, orient=HORIZONTAL)
         self.end_separator.grid_forget()
@@ -193,8 +228,54 @@ class ReporterUI:
         sys.exit()
 
     def obtain_date_folders(self):
-        # Use os.walk(path) to get a list of directories and files and make a list containing the directory names
-        pass
+        """
+        Get all the date folder names into a list and return it to populate the combobox GUI widget.
+        :return date_folder_names: (list) folder names
+        """
+        date_folder_names = []
+        self.working_dir = helper.get_working_dir_path()
+        helper.directory_exists(self.working_dir)
+        dir_items = os.listdir(self.working_dir)
+        if len(dir_items) > 0:
+            for item in dir_items:
+                item_path = os.path.join(self.working_dir, item)
+                if os.path.isdir(item_path):
+                    date_folder_names.append(item)
+                else:
+                    print(f"{item} is a file.  It will not be added to the date combobox.")
+        else:
+            print(f"No date folders found at directory: {self.working_dir}")
+        date_folder_names.insert(0, "-- Select Date --")
+
+        return date_folder_names
+
+    def date_folder_changed(self, event):
+        # Clear the csv listbox of all contents
+        self.clear_csv_listbox()
+        self.csv_file_path_list = []
+
+        selected_item_name = self.selected_date.get()
+        if selected_item_name == "-- Select Date --":
+            selected_item_path = "Path Displayed Here"
+            print(f"No valid date selected from combobox.  Do nothing.")
+        else:
+            # Get contents from the date directory selected from the date combobox
+            selected_item_path = os.path.join(self.working_dir, selected_item_name)
+            selected_item_contents = os.listdir(selected_item_path)
+            # Verify that csv files exist in directory
+            if len(selected_item_contents) == 0:
+                print(f"No CSV files found in: {selected_item_path}")
+            else:
+                for item in selected_item_contents:
+                    file_path = os.path.join(selected_item_path, item)
+                    if os.path.isfile(file_path) and file_path.endswith(".csv"):
+                        file_path_clean = file_path.replace("\\", "/")
+                        self.csv_listbox.insert(END, item)
+                        self.csv_file_path_list.append(file_path_clean)
+                self.preview_graph_button.config(state=ACTIVE)
+                self.clear_csv_listbox_button.config(state=ACTIVE)
+
+        self.abs_path_display_label.config(text=selected_item_path)
 
     def toggle_log_window_visibility(self):
         """
@@ -277,22 +358,32 @@ class ReporterUI:
         self.csv_listbox.delete(0, END)
         self.preview_graph_button.config(state=DISABLED)
         self.clear_csv_listbox_button.config(state=DISABLED)
+        self.abs_path_display_label.config(text="Path Displayed Here")
 
     def send_csv_to_generate_data(self):
         """
-        Send the clean csv file paths one at a time to the ParseCsvData class to isolate and prepare the data
-        for graph generation.
+        For each csv file dragged into the widget, send the full path to parse through the data and generate the
+        data reports.
         :return: None
         """
-        for csv_file_path in self.csv_file_path_list:
-            ggd = generate_graph_data.GenerateGraphData(csv_file_path)
-            self.plot_file_paths = ggd.generate_reports()
+        self.obtain_date_folders()
+        ggd = generate_graph_data.GenerateGraphData()
+
+        for path in self.csv_file_path_list:
+            self.csv_file_path = path
+            self.graph_paths_per_csv = ggd.generate_reports(path)
 
     def send_email_report(self):
-        er = email_report.EmailReport(self.plot_file_paths)
-        er.setup_email_properties()
-        msg = er.create_email_body()
-        er.finalize_send_email(msg)
+        """
+        For each graph directory, send the full path to EmailReport() to generate the email
+        body and send the email.
+        :return:
+        """
+        for csv_paths_list in self.graph_paths_per_csv:
+            er = email_report.EmailReport(csv_paths_list, self.csv_file_path)
+            er.setup_email_properties()
+            email = er.create_email_body()
+            er.finalize_send_email(email)
 
     def open_settings_window(self):
         """

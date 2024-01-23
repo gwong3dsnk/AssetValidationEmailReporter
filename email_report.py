@@ -1,16 +1,19 @@
-import json, smtplib
+import json, smtplib, helper
 from email.message import EmailMessage
 from email.utils import make_msgid
 
 
 class EmailReport:
-    def __init__(self, plot_file_paths):
-        self.plot_file_paths = plot_file_paths
+    def __init__(self, csv_paths_list, csv_file_path):
+        self.csv_paths_list = csv_paths_list
+        self.csv_file_path = csv_file_path
         self.from_mail = ""
         self.from_password = ""
         self.smtp_server = ""
         self.smtp_port = 0
         self.to_mail = "gwongkmst@gmail.com"
+        self.date = helper.get_current_date()
+        self.capture_type = helper.get_capture_type(self.csv_paths_list[0])
 
     def setup_email_properties(self):
         """
@@ -31,45 +34,66 @@ class EmailReport:
         self.smtp_port = email_data["smtp_server_port"]
 
     def create_email_body(self):
-        print(f"Plot File Paths: {self.plot_file_paths}")
+        # Set the email fields to the pre-established attributes.
+        email = EmailMessage()
+        email["Subject"] = f"[{self.date}] Asset Validation Report - {self.capture_type}"
+        email["From"] = self.from_mail
+        email["To"] = self.to_mail
 
-        # Create the email message
-        msg = EmailMessage()
-        msg["Subject"] = "Art Asset Report"
-        msg["From"] = self.from_mail
-        msg["To"] = self.to_mail
-
+        # Generate message IDs for each of the unique graph image plots that are to be embedded.
         image_cid = [make_msgid(idstring="first_img")[1:-1], make_msgid(idstring="second_img")[1:-1]]
 
-        # Attach HTML Body
-        msg.set_content(
+        # Create the HTML body text with formatting
+        email.set_content(
             '''
             <html>
                 <body>
-                    <h1 style="text-align: center;">Simple Data Report</h1>
-                    <p>Here could be a short description of the data_old.</p>
-                    <img src="cid:{image_cid[0]}">
+                    <h1 style="text-align: center;">Asset Data Validation Report</h1>
+                    <p>Ladies and Gents, here is today's latest report on the health of our art library.
+                    This is just a quick overview of the state of things.  Refer to the attachment to see the source 
+                    data CSV files in order to conduct a deeper review.</p>
+                    <p>If you have any questions, please don't hesitate to reach out to Tech Art.  Much obliged!</p>
+                    <h3>Date of Report: {date}</h3>
+                    <h3>Capture Type: {capture_type}</h3>
+                    <p>This first chart shows an overview of how many of each failed asset exists 
+                    per level of Severity.</p>
+                    <img src="cid:{image_cid[0]}"><br>
+                    <p>This next chart displays, out of all failed assets, what percentage of them fell into which
+                    category of failure.</p>
+                    <img src="cid:{image_cid[1]}">
+                    <p>Refer to the attachment to see the source data CSV files in order to conduct a deeper review.</p>
                 </body>
             </html>'
-            '''.format(image_cid=image_cid), subtype="html"
+            '''.format(image_cid=image_cid, date=self.date, capture_type=self.capture_type), subtype="html"
         )
 
-        for idx, imgtuple in enumerate([(self.plot_file_paths[0], "jpeg")]):
+        # Embed the generated graph plots into the email body.
+        for idx, imgtuple in enumerate([(self.csv_paths_list[0], "jpeg"), (self.csv_paths_list[1], "jpeg")]):
             imgfile, imgtype = imgtuple
             with open(imgfile, "rb") as plot_img:
-                msg.add_related(
+                email.add_related(
                     plot_img.read(),
                     maintype="image",
                     subtype=imgtype,
                     cid=f"<{image_cid[idx]}>"
                 )
 
-        return msg
+        # Attach the source CSV file to the email.
+        with open(self.csv_file_path, "rb") as csv_file:
+            csv = csv_file.read()
+            email.add_attachment(
+                csv,
+                maintype="application",
+                subtype="csv",
+                filename=f"{self.capture_type}.csv"
+            )
 
-    def finalize_send_email(self, msg):
+        return email
+
+    def finalize_send_email(self, email):
         # Send the email
         server = smtplib.SMTP(self.smtp_server, self.smtp_port)
         server.starttls()
         server.login(self.from_mail, self.from_password)
-        server.sendmail(self.from_mail, self.to_mail, msg.as_string())
+        server.sendmail(self.from_mail, self.to_mail, email.as_string())
         server.quit()
