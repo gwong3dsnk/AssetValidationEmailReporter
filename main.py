@@ -1,3 +1,4 @@
-from ui import ReporterUI
+import ui
 
-reporter_ui = ReporterUI()
+if __name__ == "__main__":
+    ui.ReporterUI()

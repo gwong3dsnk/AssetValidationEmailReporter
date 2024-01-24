@@ -4,14 +4,14 @@ from email.utils import make_msgid
 
 
 class EmailReport:
-    def __init__(self, csv_paths_list, csv_file_path):
+    def __init__(self, csv_paths_list, csv_file_path, recipient):
         self.csv_paths_list = csv_paths_list
         self.csv_file_path = csv_file_path
+        self.to_mail = recipient
         self.from_mail = ""
         self.from_password = ""
         self.smtp_server = ""
         self.smtp_port = 0
-        self.to_mail = "gwongkmst@gmail.com"
         self.date = helper.get_current_date()
         self.capture_type = helper.get_capture_type(self.csv_paths_list[0])
 
@@ -57,10 +57,10 @@ class EmailReport:
                     <h3>Capture Type: {capture_type}</h3>
                     <p>This first chart shows an overview of how many of each failed asset exists 
                     per level of Severity.</p>
-                    <img src="cid:{image_cid[0]}"><br>
+                    <img src="cid:{image_cid[0]}"></img><br>
                     <p>This next chart displays, out of all failed assets, what percentage of them fell into which
                     category of failure.</p>
-                    <img src="cid:{image_cid[1]}">
+                    <img src="cid:{image_cid[1]}"></img>
                     <p>Refer to the attachment to see the source data CSV files in order to conduct a deeper review.</p>
                 </body>
             </html>'
@@ -68,7 +68,7 @@ class EmailReport:
         )
 
         # Embed the generated graph plots into the email body.
-        for idx, imgtuple in enumerate([(self.csv_paths_list[0], "jpeg"), (self.csv_paths_list[1], "jpeg")]):
+        for idx, imgtuple in enumerate([(self.csv_paths_list[0], "jpg"), (self.csv_paths_list[1], "jpg")]):
             imgfile, imgtype = imgtuple
             with open(imgfile, "rb") as plot_img:
                 email.add_related(

@@ -54,3 +54,12 @@ def get_working_dir_path():
     working_dir = os.path.join(user_home_dir, "Desktop\GabeWong-UbisoftTest\TechnicalTest\DataFiles")
 
     return working_dir
+
+
+def change_to_relative_path(path):
+    file_path_clean = path.replace("\\", "/")
+    path_split = file_path_clean.split("/")
+    path_segment = os.path.join(path_split[len(path_split) - 2],
+                                path_split[len(path_split) - 1]).replace("\\", "/")
+    relative_path = f".../{path_segment}"
+    return relative_path, file_path_clean
