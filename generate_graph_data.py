@@ -21,16 +21,6 @@ class GenerateGraphData:
 
         return self.paths_per_csv
 
-    # def get_pass_state_report(self):
-    #     self.data_type_name = "Pass/Fail State"
-    #
-    #     self.x_axis_label = [dir_name for dir_name in os.listdir(self.csv_file_path)
-    #                          if os.path.isdir(f"{self.csv_file_path}/{dir_name}")]
-    #
-    #     num_pass = self.df[self.df.Reason == "Pass"].shape[0]
-    #     num_fail = self.df.shape[0] - num_pass
-    #     self.x_axis_data = [num_pass, num_fail]
-
     def get_severity_report(self, df, gg):
         """
         Loop through the dataframe rows and increment specific list index pertaining to the level of severity.
@@ -59,6 +49,12 @@ class GenerateGraphData:
         self.reset_variables()
 
     def get_fail_reason_report(self, df, gg):
+        """
+        Generate a pie chart that shows the percentages that each fail reason makes up.
+        :param df:
+        :param gg:
+        :return:
+        """
         self.data_type_name = "All_Fail_Reasons"
         self.plot_data = [0, 0, 0, 0, 0, 0]
         self.plot_labels = ["TriangleCount", "LODCount", "MatCount", "InvalidNaniteMat", "DevAsset", "NeverStream"]

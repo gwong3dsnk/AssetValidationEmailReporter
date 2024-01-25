@@ -1,4 +1,4 @@
-import os, json
+import os, json, subprocess
 import tkinter
 from tkinter import *
 import tkinter.ttk as ttk
@@ -104,10 +104,18 @@ class ReporterUI:
         self.save_new_preset_button = Button(text="Save Preset", command=self.save_new_preset)
         self.save_new_preset_button.grid(column=4, row=3, padx=5)
 
-        load_preset_combobox = ttk.Combobox()
-        load_preset_combobox.grid(column=5, row=3)
+        self.preset_names = self.get_existing_presets()
+        self.selected_preset = tkinter.StringVar()
+        self.load_preset_combobox = ttk.Combobox(
+            values=self.preset_names,
+            state="readonly",
+            textvariable=self.selected_preset
+        )
+        self.load_preset_combobox.current(0)
+        self.load_preset_combobox.grid(column=5, row=3)
+        self.load_preset_combobox.bind("<<ComboboxSelected>>", self.load_existing_presets)
 
-        self.delete_preset_button = Button(text="Delete Preset")
+        self.delete_preset_button = Button(text="Delete Preset", command=self.delete_selected_preset)
         self.delete_preset_button.grid(column=6, row=3, padx=5)
 
         abs_path_label = Label(text="Folder Path:", bg=BG_COLOR, fg=LIGHT_GRAY_COLOR)
@@ -150,11 +158,10 @@ class ReporterUI:
         self.csv_listbox.drop_target_register(DND_FILES)
         self.csv_listbox.dnd_bind("<<Drop>>", self.drop_inside_csv_listbox)
 
-        self.preview_graph_button = Button(text="Preview Graph(s)", command=self.send_csv_to_generate_data,
-                                           state=DISABLED)
+        self.preview_graph_button = Button(text="Preview Graph(s)", command=self.send_csv_to_generate_data)
         self.preview_graph_button.grid(column=0, row=7, columnspan=5)
 
-        self.clear_csv_listbox_button = Button(text="Clear CSV Listbox", command=self.clear_csv_listbox, state=DISABLED)
+        self.clear_csv_listbox_button = Button(text="Clear CSV Listbox", command=self.clear_csv_listbox)
         self.clear_csv_listbox_button.grid(column=2, row=7, columnspan=7)
 
         email_addresses_listbox_label = Label(
@@ -277,8 +284,65 @@ class ReporterUI:
     def exit_app(self):
         sys.exit()
 
+    def delete_selected_preset(self):
+        current_selected_preset = self.load_preset_combobox.get()
+        with open("../proj_data/presets.json", "r") as f:
+            contents = json.load(f)
+            for data in contents:
+                if data["preset_name"] == current_selected_preset:
+                    idx = contents.index(data)
+                    del contents[idx]
+        open("../proj_data/presets.json", "w").close()
+        with open("../proj_data/presets.json", "r+") as f:
+            json.dump(contents, f, indent=4)
+
+        self.clear_csv_listbox()
+        self.recipient_address_listbox.delete(0, END)
+
+    def get_existing_presets(self):
+        """
+        Read the previously saved presets from the presets.json, get the preset names, refresh the preset combobox
+        :return:
+        """
+        preset_names = []
+        with open("../proj_data/presets.json", "r") as f:
+            contents = json.load(f)
+            for data in contents:
+                preset_names.append(data["preset_name"])
+
+        return preset_names
+
+    def load_existing_presets(self, event):
+        """
+        Executed when the user selects an option from the preset dropdown menu that isn't the index 0 option.
+        Loads the preset data into the GUI elements where data is found.
+        :param event: ComboboxSelected binding
+        :return: None
+        """
+        selected_preset = self.load_preset_combobox.get()
+
+        with open("../proj_data/presets.json", "r") as f:
+            contents = json.load(f)
+            self.csv_file_path_list = []
+            for preset_dict in contents:
+                if preset_dict["preset_name"] == selected_preset:
+                    self.date_folder_combobox.set(preset_dict["date_folder"])
+                    self.abs_path_display_label.config(text=preset_dict["date_folder_path"])
+                    self.recipient_address_listbox.delete(0, END)
+                    for address in preset_dict["recipient_addresses"]:
+                        self.recipient_address_listbox.insert(END, address)
+                    self.csv_listbox.delete(0, END)
+                    for csv_path in preset_dict["csv_files"]:
+                        self.csv_file_path_list.append(csv_path)
+                        csv_display_path, file_path_clean = helper.change_to_relative_path(csv_path)
+                        self.csv_listbox.insert(END, csv_display_path)
+
     def save_new_preset(self):
-        # TODO: Finish Saving new preset
+        """
+        Requires Preset name to be entered in GUI as well as email addresses in the recipient listbox to save
+        properly.  Date folder choice and csv files are optional.
+        :return:
+        """
         recipient_contents = self.recipient_address_listbox.get(0, END)
         preset_name = self.new_preset_name_entry.get()
         date_folder_name = self.date_folder_combobox.get()
@@ -293,9 +357,23 @@ class ReporterUI:
                 "csv_files": self.csv_file_path_list
             }
 
-            with open("saved/presets.json", "a") as f:
-                json.dump(new_preset_dict, f, indent=4)
+            with open("../proj_data/presets.json", "r+") as f:
+                content = json.load(f)
+                existing_content = content
+            open("../proj_data/presets.json", "w").close()
+            with open("../proj_data/presets.json", "r+") as f:
+                existing_content.append(new_preset_dict)
+                json.dump(existing_content, f, indent=4)
                 f.write("\n")
+
+            self.new_preset_name_entry.delete(0, END)
+
+            # Repopulate values in the preset combo box
+            self.preset_names = self.get_existing_presets()
+            self.load_preset_combobox.delete(0, END)
+            self.load_preset_combobox.config(values=self.preset_names)
+            newly_created_preset = self.preset_names[len(self.preset_names) - 1]
+            self.load_preset_combobox.set(newly_created_preset)
 
         else:
             print("Failed to save new preset.  Check to make sure you have entered a new preset name in the textfield,"
@@ -314,9 +392,9 @@ class ReporterUI:
             cur_item_text = self.address_book_listbox.get(n)
             self.address_book_listbox.delete(current_selection[n])
 
-            with open("saved/address_book.txt", "r") as f:
+            with open("../proj_data/address_book.txt", "r") as f:
                 lines = f.readlines()
-            with open("saved/address_book.txt", "w") as f:
+            with open("../proj_data/address_book.txt", "w") as f:
                 for line in lines:
                     if line != cur_item_text:
                         f.write(line)
@@ -355,7 +433,7 @@ class ReporterUI:
         On app start, populate the address book listbox with the contents of the address book txt file.
         :return:
         """
-        with open("saved/address_book.txt", "r") as f:
+        with open("../proj_data/address_book.txt", "r") as f:
             emails = f.readlines()
             emails.sort()
             if not emails:
@@ -363,7 +441,7 @@ class ReporterUI:
             else:
                 for address in emails:
                     self.address_book_listbox.insert(END, address)
-        with open("saved/address_book.txt", "w") as f:
+        with open("../proj_data/address_book.txt", "w") as f:
             # Overwrite existing txt contents with sorted content.
             for line in emails:
                 f.write(f"{line}")
@@ -381,7 +459,7 @@ class ReporterUI:
             self.address_book_listbox.insert(END, current_entry_text)
             self.add_new_email_address_entry.delete(0, END)
 
-            with open("saved/address_book.txt", "r") as f:
+            with open("../proj_data/address_book.txt", "r") as f:
                 lines = f.readlines()
                 if f"{current_entry_text}\n" not in lines:
                     lines.append(f"{current_entry_text}\n")
@@ -389,7 +467,7 @@ class ReporterUI:
 
             self.address_book_listbox.delete(0, END)
 
-            with open("saved/address_book.txt", "w") as f:
+            with open("../proj_data/address_book.txt", "w") as f:
                 # Overwrite existing txt contents with sorted content.
                 for line in lines:
                     f.write(f"{line}")
@@ -405,15 +483,14 @@ class ReporterUI:
         """
         date_folder_names = []
         self.working_dir = helper.get_working_dir_path()
-        helper.directory_exists(self.working_dir)
+        print(self.working_dir)
+        print(helper.directory_exists(self.working_dir))
         dir_items = os.listdir(self.working_dir)
         if len(dir_items) > 0:
             for item in dir_items:
                 item_path = os.path.join(self.working_dir, item)
                 if os.path.isdir(item_path):
                     date_folder_names.append(item)
-                else:
-                    print(f"{item} is a file.  It will not be added to the date combobox.")
         else:
             print(f"No date folders found at directory: {self.working_dir}")
         date_folder_names.insert(0, "-- Select Date --")
@@ -422,7 +499,7 @@ class ReporterUI:
 
     def date_folder_changed(self, event):
         # Clear the csv listbox of all contents
-        self.clear_csv_listbox()
+        self.csv_listbox.delete(0, END)
         self.csv_file_path_list = []
 
         selected_item_name = self.selected_date.get()
@@ -443,8 +520,6 @@ class ReporterUI:
                         relative_path, file_path_clean = helper.change_to_relative_path(file_path)
                         self.csv_listbox.insert(END, relative_path)
                         self.csv_file_path_list.append(file_path_clean)
-                self.preview_graph_button.config(state=ACTIVE)
-                self.clear_csv_listbox_button.config(state=ACTIVE)
 
         self.abs_path_display_label.config(text=selected_item_path)
 
@@ -455,8 +530,8 @@ class ReporterUI:
         :return: None
         """
         if self.log_window_check_state.get():
-            self.end_separator.grid(column=0, row=13, columnspan=3, sticky="we", pady=10)
-            self.log_window.grid(column=0, row=14, columnspan=3, sticky="nsew")
+            self.end_separator.grid(column=0, row=13, columnspan=7, sticky="we", pady=10)
+            self.log_window.grid(column=0, row=14, columnspan=7, sticky="nsew")
         else:
             self.end_separator.grid_forget()
             self.log_window.grid_forget()
@@ -524,8 +599,6 @@ class ReporterUI:
             print("No valid CSV files found to add.")
         else:
             print("Valid CSV files found.")
-            self.preview_graph_button.config(state=ACTIVE)
-            self.clear_csv_listbox_button.config(state=ACTIVE)
 
     def clear_csv_listbox(self):
         """
@@ -534,8 +607,7 @@ class ReporterUI:
         """
         self.csv_listbox.delete(0, END)
         self.csv_file_path_list = []
-        self.preview_graph_button.config(state=DISABLED)
-        self.clear_csv_listbox_button.config(state=DISABLED)
+        self.date_folder_combobox.current(0)
         self.abs_path_display_label.config(text="Path Displayed Here")
 
     def send_csv_to_generate_data(self):
@@ -544,11 +616,20 @@ class ReporterUI:
         data reports.
         :return: None
         """
-        ggd = generate_graph_data.GenerateGraphData()
+        if self.csv_listbox.get(0, END):
+            ggd = generate_graph_data.GenerateGraphData()
+            graph_path = ""
 
-        for path in self.csv_file_path_list:
-            self.csv_file_path = path
-            self.graph_paths_per_csv = ggd.generate_reports(path)
+            for path in self.csv_file_path_list:
+                self.csv_file_path = path
+                self.graph_paths_per_csv = ggd.generate_reports(path)
+                # Format path to open to this dir in windows explorer
+                graph_path = helper.get_graph_path(path).replace("/", "\\")
+
+            if self.date_folder_combobox.get() != "-- Select Date --":
+                subprocess.Popen(f"explorer {graph_path}")
+        else:
+            print("Please add csv files to the csv listbox via file drag-and-drop, or using the date dropdown menu.")
 
     def send_email_report(self):
         """
@@ -574,78 +655,5 @@ class ReporterUI:
         Create new GUI window to house all Settings controls under the Edit menu bar item.
         :return:
         """
-        settings_root_ui = tkinter.Tk()
-        settings_root_ui.title("Settings")
-        settings_root_ui.minsize(width=250, height=200)
-        settings_root_ui.config(padx=20, pady=20, bg=BG_COLOR)
-
-        email_title = Label(
-            settings_root_ui,
-            text="Email Settings",
-            font=("Arial", 18, "bold"),
-            bg=BG_COLOR,
-            fg="#bcbcbc",
-        )
-        email_title.grid(column=0, row=0)
-
-        sender_email_address_label = Label(
-            settings_root_ui,
-            text="Sender Email Address:",
-            bg=BG_COLOR,
-            fg=LIGHT_GRAY_COLOR,
-            justify=LEFT
-        )
-        sender_email_address_label.grid(column=0, row=1)
-
-        sender_email_address_entry = Entry(settings_root_ui)
-        sender_email_address_entry.grid(column=1, row=1)
-
-        sender_email_password_label = Label(
-            settings_root_ui,
-            text="Sender Email Password:",
-            bg=BG_COLOR,
-            fg=LIGHT_GRAY_COLOR,
-            justify=LEFT
-        )
-        sender_email_password_label.grid(column=0, row=2)
-
-        sender_email_password_entry = Entry(settings_root_ui)
-        sender_email_password_entry.grid(column=1, row=2)
-
-        smtp_server_address_label = Label(
-            settings_root_ui,
-            text="SMTP Server Address:",
-            bg=BG_COLOR,
-            fg=LIGHT_GRAY_COLOR,
-            justify=LEFT
-        )
-        smtp_server_address_label.grid(column=0, row=3)
-
-        smtp_server_address_entry = Entry(settings_root_ui)
-        smtp_server_address_entry.grid(column=1, row=3)
-
-        smtp_server_port_label = Label(
-            settings_root_ui,
-            text="SMTP Server Port:",
-            bg=BG_COLOR,
-            fg=LIGHT_GRAY_COLOR,
-            justify=LEFT
-        )
-        smtp_server_port_label.grid(column=0, row=4)
-
-        smtp_server_port_entry = Entry(settings_root_ui)
-        smtp_server_port_entry.grid(column=1, row=4)
-
-        email_info_button = Button(settings_root_ui, text="Save Information", command=self.save_email_information)
-        email_info_button.grid(column=0, row=5, columnspan=2)
-
-        settings_root_ui.mainloop()
-
-    def save_email_information(self):
-        """
-        Save entered email information to json file - email_properties.json.
-        NOTE: This is just for this test.  In reality I would save the information to env. variables.
-        :return:
-        """
-        print("This button functionality has yet to be written.")
-        pass
+        from gui import sender_email_ui
+        sender_email_ui.SenderEmail()

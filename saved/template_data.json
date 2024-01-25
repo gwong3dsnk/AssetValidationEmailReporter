@@ -1,0 +1,10 @@
+[
+    {
+    "init_data": "presets",
+    "preset_name": "-- Select Preset --",
+    "date_folder": "-- Select Date --",
+    "date_folder_path": "Path Displayed Here",
+    "recipient_addresses": [],
+    "csv_files": []
+    }
+]

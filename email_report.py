@@ -1,4 +1,4 @@
-import json, smtplib, helper
+import json, smtplib, helper, os
 from email.message import EmailMessage
 from email.utils import make_msgid
 
@@ -17,14 +17,17 @@ class EmailReport:
 
     def setup_email_properties(self):
         """
-        The email details found in email_properties.json is a completely unused test email I made for testing
+        The email details found in sender_email_data.json is a completely unused test email I made for testing
         purposes and the password is the app generated password for use with this script.  As mentioned elsewhere,
         in reality, I would have the user enter their email details in the Settings menu of this tool and save them
         as environment variables.
         :return:
         """
+        working_dir = helper.get_working_dir_path()
+        json_file = os.path.join(working_dir, "../proj_data/sender_email_data.json")
+
         # Open and read json file with email settings
-        with open("data/email_properties.json") as email_file:
+        with open(json_file, "r") as email_file:
             email_data = json.load(email_file)
 
         # Settings

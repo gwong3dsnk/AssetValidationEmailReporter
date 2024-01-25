@@ -1,16 +1,16 @@
-import os
+import os, json
 from datetime import date
 
 
-def directory_exists(csv_dir_path):
+def directory_exists(dir_path):
     """
     Check if the Graph img directory exists.  If not, create it recursively.
-    :param csv_dir_path: (str)
+    :param dir_path: (str)
     :return:
     """
-    if not os.path.exists(csv_dir_path):
-        print(f"Directory doesn't exist.  Creating it now at {csv_dir_path}")
-        os.makedirs(csv_dir_path)
+    if not os.path.exists(dir_path):
+        print(f"Directory doesn't exist.  Creating it now at {dir_path}")
+        os.makedirs(dir_path)
 
 
 def get_current_date():
@@ -51,7 +51,8 @@ def get_graph_path(path):
 
 def get_working_dir_path():
     user_home_dir = os.path.expanduser('~')
-    working_dir = os.path.join(user_home_dir, "Desktop\GabeWong-UbisoftTest\TechnicalTest\DataFiles")
+    working_dir = os.path.join(user_home_dir, "Desktop\GabeWong-UbisoftTest\TechnicalTest\csv_source_files")
+    working_dir.replace("\\", "/")
 
     return working_dir
 
@@ -63,3 +64,52 @@ def change_to_relative_path(path):
                                 path_split[len(path_split) - 1]).replace("\\", "/")
     relative_path = f".../{path_segment}"
     return relative_path, file_path_clean
+
+
+def verify_data_directory_and_files():
+    # Verify data folder exists
+    path_to_csv_data = get_working_dir_path()
+    proj_data_path = os.path.join(path_to_csv_data, "../proj_data")
+    directory_exists(proj_data_path)
+
+    # Verify data files exist
+    files_to_check = ["address_book.txt", "presets.json", "sender_email_data.json"]
+
+    proj_data_contents = os.listdir(proj_data_path)
+    address_book_file_path = os.path.join(proj_data_path, files_to_check[0])
+    presets_file_path = os.path.join(proj_data_path, files_to_check[1])
+    sender_email_data_path = os.path.join(proj_data_path, files_to_check[2])
+
+    if files_to_check[0] not in proj_data_contents:
+        with open(address_book_file_path, "w") as new_file:
+            new_file.write("")
+
+    if files_to_check[1] not in proj_data_contents:
+        with open(presets_file_path, "w") as new_file:
+            with open("saved/template_data.json", "r") as template_data:
+                contents = json.load(template_data)
+                json.dump(contents, new_file, indent=4)
+    else:
+        template_exists = True
+        existing_preset_data = []
+
+        # File exists.  Check for init_data key if it exists in the contents first index
+        with open(presets_file_path, "r") as file:
+            contents = json.load(file)
+            if "init_data" not in contents[0]:
+                template_exists = False
+                existing_preset_data = contents
+
+        # Template data not found at index 0.  Clear the file, add the template data to index 0 and write back to
+        # the json file with existing content.
+        if not template_exists:
+            open(presets_file_path, "w").close()
+            with open(presets_file_path, "w") as file:
+                with open("saved/template_data.json", "r") as template_data:
+                    td_contents = json.load(template_data)
+                    existing_preset_data.insert(0, td_contents[0])
+                    json.dump(contents, file, indent=4)
+
+    if files_to_check[2] not in proj_data_contents:
+        with open(sender_email_data_path, "w") as new_file:
+            new_file.write("")
