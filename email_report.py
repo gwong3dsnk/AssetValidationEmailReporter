@@ -4,7 +4,7 @@ from email.utils import make_msgid
 
 
 class EmailReport:
-    def __init__(self, csv_paths_list, csv_file_path, recipient):
+    def __init__(self, csv_paths_list, csv_file_path, recipient, full_line_report):
         self.csv_paths_list = csv_paths_list
         self.csv_file_path = csv_file_path
         self.to_mail = recipient
@@ -14,13 +14,13 @@ class EmailReport:
         self.smtp_port = 0
         self.date = helper.get_current_date()
         self.capture_type = helper.get_capture_type(self.csv_paths_list[0])
+        self.critical_fails = full_line_report[0]
+        self.high_fails = full_line_report[1]
+        self.medium_fails = full_line_report[2]
 
     def setup_email_properties(self):
         """
-        The email details found in sender_email_data.json is a completely unused test email I made for testing
-        purposes and the password is the app generated password for use with this script.  As mentioned elsewhere,
-        in reality, I would have the user enter their email details in the Settings menu of this tool and save them
-        as environment variables.
+        Set the email properties
         :return:
         """
         working_dir, proj_data_dir = helper.get_working_dir_path()
@@ -37,6 +37,10 @@ class EmailReport:
         self.smtp_port = email_data["smtp_server_port"]
 
     def create_email_body(self):
+        """
+        Create the email HTML body contents of the report
+        :return:
+        """
         # Set the email fields to the pre-established attributes.
         email = EmailMessage()
         email["Subject"] = f"[{self.date}] Asset Validation Report - {self.capture_type}"
@@ -45,6 +49,9 @@ class EmailReport:
 
         # Generate message IDs for each of the unique graph image plots that are to be embedded.
         image_cid = [make_msgid(idstring="first_img")[1:-1], make_msgid(idstring="second_img")[1:-1]]
+        critical_fails = "<br />\n".join(self.critical_fails)
+        high_fails = "<br />\n".join(self.high_fails)
+        medium_fails = "<br />\n".join(self.medium_fails)
 
         # Create the HTML body text with formatting
         email.set_content(
@@ -65,9 +72,23 @@ class EmailReport:
                     category of failure.</p>
                     <img src="cid:{image_cid[1]}"></img>
                     <p>Refer to the attachment to see the source data CSV files in order to conduct a deeper review.</p>
+                    <h2>Asset List</h2>
+                    <h3>Critical Failures</h3>
+                    <p>{critical_fails}</p>
+                    <h3>High Failures</h3>
+                    <p>{high_fails}</p>
+                    <h3>Medium Failures</h3>
+                    <p>{medium_fails}</p>
                 </body>
-            </html>'
-            '''.format(image_cid=image_cid, date=self.date, capture_type=self.capture_type), subtype="html"
+            </html>
+            '''.format(
+                image_cid=image_cid,
+                date=self.date,
+                capture_type=self.capture_type,
+                critical_fails=critical_fails,
+                high_fails=high_fails,
+                medium_fails=medium_fails
+            ), subtype="html"
         )
 
         # Embed the generated graph plots into the email body.

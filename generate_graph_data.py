@@ -15,11 +15,12 @@ class GenerateGraphData:
 
         self.get_severity_report(df, gg)
         self.get_fail_reason_report(df, gg)
+        full_line_report = self.generate_asset_report_list(df)
 
         self.paths_per_csv.append(self.plot_file_paths)
         self.plot_file_paths = []
 
-        return self.paths_per_csv
+        return self.paths_per_csv, full_line_report
 
     def get_severity_report(self, df, gg):
         """
@@ -96,6 +97,29 @@ class GenerateGraphData:
         )
         self.plot_file_paths.append(plot_file_path)
         self.reset_variables()
+
+    def generate_asset_report_list(self, df):
+        asset_path_data = []
+        report = []
+        severity_levels = ["Critical", "High", "Medium"]
+        full_line_report = []
+
+        for n in range(0, len(severity_levels)):
+            reasons = [row["FailReasons"] for index, row in df.iterrows() if row["Severity"] == severity_levels[n]]
+            asset_names = [row["AssetName"] for index, row in df.iterrows() if row["Severity"] == severity_levels[n]]
+            asset_paths = [row["ObjectPath"] for index, row in df.iterrows() if row["Severity"] == severity_levels[n]]
+
+            for path in asset_paths:
+                new_path = path.rpartition("/")[0]
+                asset_path_data.append(new_path)
+
+            for i in range(0, len(reasons)):
+                report_line = f"{asset_names[i]} --> {reasons[i]} --> {asset_path_data[i]}"
+                report.append(report_line)
+
+            full_line_report.append(report)
+
+        return full_line_report
 
     def reset_variables(self):
         """

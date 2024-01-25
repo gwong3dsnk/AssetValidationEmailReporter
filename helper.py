@@ -45,7 +45,6 @@ def get_capture_type(path):
 
 
 def get_graph_path(path):
-    print(f"get_graph_path: {path}")
     return f"{path.rpartition('/')[0]}/Graphs"
 
 

@@ -17,6 +17,7 @@ class ReporterUI:
         self.plot_file_path = ""
         self.graph_paths_per_csv = []
         self.working_dir, self.proj_data_dir = helper.get_working_dir_path()
+        self.full_line_report = []
 
         self.root_ui = TkinterDnD.Tk()
         self.root_ui.title("Asset Validation Email Reporter")
@@ -619,7 +620,7 @@ class ReporterUI:
 
             for path in self.csv_file_path_list:
                 self.csv_file_path = path
-                self.graph_paths_per_csv = ggd.generate_reports(path)
+                self.graph_paths_per_csv, self.full_line_report = ggd.generate_reports(path)
                 # Format path to open to this dir in windows explorer
                 graph_path = helper.get_graph_path(path).replace("/", "\\")
 
@@ -639,7 +640,8 @@ class ReporterUI:
             recipient_email_addresses = self.recipient_address_listbox.get(0, END)
             for recipient in recipient_email_addresses:
                 for csv_paths_list in self.graph_paths_per_csv:
-                    er = email_report.EmailReport(csv_paths_list, self.csv_file_path, recipient)
+                    er = email_report.EmailReport(csv_paths_list, self.csv_file_path, recipient,
+                                                  self.full_line_report)
                     er.setup_email_properties()
                     email = er.create_email_body()
                     er.finalize_send_email(email)
