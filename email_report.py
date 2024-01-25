@@ -23,8 +23,8 @@ class EmailReport:
         as environment variables.
         :return:
         """
-        working_dir = helper.get_working_dir_path()
-        json_file = os.path.join(working_dir, "../proj_data/sender_email_data.json")
+        working_dir, proj_data_dir = helper.get_working_dir_path()
+        json_file = os.path.join(proj_data_dir, "sender_email_data.json")
 
         # Open and read json file with email settings
         with open(json_file, "r") as email_file:

@@ -16,7 +16,7 @@ class ReporterUI:
         self.csv_file_path = ""
         self.plot_file_path = ""
         self.graph_paths_per_csv = []
-        self.working_dir = ""
+        self.working_dir, self.proj_data_dir = helper.get_working_dir_path()
 
         self.root_ui = TkinterDnD.Tk()
         self.root_ui.title("Asset Validation Email Reporter")
@@ -286,14 +286,14 @@ class ReporterUI:
 
     def delete_selected_preset(self):
         current_selected_preset = self.load_preset_combobox.get()
-        with open("../proj_data/presets.json", "r") as f:
+        with open(f"{self.proj_data_dir}/presets.json", "r") as f:
             contents = json.load(f)
             for data in contents:
                 if data["preset_name"] == current_selected_preset:
                     idx = contents.index(data)
                     del contents[idx]
-        open("../proj_data/presets.json", "w").close()
-        with open("../proj_data/presets.json", "r+") as f:
+        open(f"{self.proj_data_dir}/presets.json", "w").close()
+        with open(f"{self.proj_data_dir}/presets.json", "r+") as f:
             json.dump(contents, f, indent=4)
 
         self.clear_csv_listbox()
@@ -305,7 +305,7 @@ class ReporterUI:
         :return:
         """
         preset_names = []
-        with open("../proj_data/presets.json", "r") as f:
+        with open(f"{self.proj_data_dir}/presets.json", "r") as f:
             contents = json.load(f)
             for data in contents:
                 preset_names.append(data["preset_name"])
@@ -321,7 +321,7 @@ class ReporterUI:
         """
         selected_preset = self.load_preset_combobox.get()
 
-        with open("../proj_data/presets.json", "r") as f:
+        with open(f"{self.proj_data_dir}/presets.json", "r") as f:
             contents = json.load(f)
             self.csv_file_path_list = []
             for preset_dict in contents:
@@ -357,11 +357,11 @@ class ReporterUI:
                 "csv_files": self.csv_file_path_list
             }
 
-            with open("../proj_data/presets.json", "r+") as f:
+            with open(f"{self.proj_data_dir}/presets.json", "r+") as f:
                 content = json.load(f)
                 existing_content = content
-            open("../proj_data/presets.json", "w").close()
-            with open("../proj_data/presets.json", "r+") as f:
+            open(f"{self.proj_data_dir}/presets.json", "w").close()
+            with open(f"{self.proj_data_dir}/presets.json", "r+") as f:
                 existing_content.append(new_preset_dict)
                 json.dump(existing_content, f, indent=4)
                 f.write("\n")
@@ -392,9 +392,9 @@ class ReporterUI:
             cur_item_text = self.address_book_listbox.get(n)
             self.address_book_listbox.delete(current_selection[n])
 
-            with open("../proj_data/address_book.txt", "r") as f:
+            with open(f"{self.proj_data_dir}/address_book.txt", "r") as f:
                 lines = f.readlines()
-            with open("../proj_data/address_book.txt", "w") as f:
+            with open(f"{self.proj_data_dir}/address_book.txt", "w") as f:
                 for line in lines:
                     if line != cur_item_text:
                         f.write(line)
@@ -433,7 +433,7 @@ class ReporterUI:
         On app start, populate the address book listbox with the contents of the address book txt file.
         :return:
         """
-        with open("../proj_data/address_book.txt", "r") as f:
+        with open(f"{self.proj_data_dir}/address_book.txt", "r") as f:
             emails = f.readlines()
             emails.sort()
             if not emails:
@@ -441,7 +441,7 @@ class ReporterUI:
             else:
                 for address in emails:
                     self.address_book_listbox.insert(END, address)
-        with open("../proj_data/address_book.txt", "w") as f:
+        with open(f"{self.proj_data_dir}/address_book.txt", "w") as f:
             # Overwrite existing txt contents with sorted content.
             for line in emails:
                 f.write(f"{line}")
@@ -459,7 +459,7 @@ class ReporterUI:
             self.address_book_listbox.insert(END, current_entry_text)
             self.add_new_email_address_entry.delete(0, END)
 
-            with open("../proj_data/address_book.txt", "r") as f:
+            with open(f"{self.proj_data_dir}/address_book.txt", "r") as f:
                 lines = f.readlines()
                 if f"{current_entry_text}\n" not in lines:
                     lines.append(f"{current_entry_text}\n")
@@ -467,7 +467,7 @@ class ReporterUI:
 
             self.address_book_listbox.delete(0, END)
 
-            with open("../proj_data/address_book.txt", "w") as f:
+            with open(f"{self.proj_data_dir}/address_book.txt", "w") as f:
                 # Overwrite existing txt contents with sorted content.
                 for line in lines:
                     f.write(f"{line}")
@@ -482,9 +482,6 @@ class ReporterUI:
         :return date_folder_names: (list) folder names
         """
         date_folder_names = []
-        self.working_dir = helper.get_working_dir_path()
-        print(self.working_dir)
-        print(helper.directory_exists(self.working_dir))
         dir_items = os.listdir(self.working_dir)
         if len(dir_items) > 0:
             for item in dir_items:

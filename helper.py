@@ -53,8 +53,10 @@ def get_working_dir_path():
     user_home_dir = os.path.expanduser('~')
     working_dir = os.path.join(user_home_dir, "Desktop\GabeWong-UbisoftTest\TechnicalTest\csv_source_files")
     working_dir.replace("\\", "/")
+    proj_data_dir = os.path.join(user_home_dir, "Desktop\GabeWong-UbisoftTest\TechnicalTest\proj_data")
+    proj_data_dir.replace("\\", "/")
 
-    return working_dir
+    return working_dir, proj_data_dir
 
 
 def change_to_relative_path(path):
@@ -68,17 +70,16 @@ def change_to_relative_path(path):
 
 def verify_data_directory_and_files():
     # Verify data folder exists
-    path_to_csv_data = get_working_dir_path()
-    proj_data_path = os.path.join(path_to_csv_data, "../proj_data")
-    directory_exists(proj_data_path)
+    working_dir, proj_data_dir = get_working_dir_path()
+    directory_exists(proj_data_dir)
 
     # Verify data files exist
     files_to_check = ["address_book.txt", "presets.json", "sender_email_data.json"]
 
-    proj_data_contents = os.listdir(proj_data_path)
-    address_book_file_path = os.path.join(proj_data_path, files_to_check[0])
-    presets_file_path = os.path.join(proj_data_path, files_to_check[1])
-    sender_email_data_path = os.path.join(proj_data_path, files_to_check[2])
+    proj_data_contents = os.listdir(proj_data_dir)
+    address_book_file_path = os.path.join(proj_data_dir, files_to_check[0])
+    presets_file_path = os.path.join(proj_data_dir, files_to_check[1])
+    sender_email_data_path = os.path.join(proj_data_dir, files_to_check[2])
 
     if files_to_check[0] not in proj_data_contents:
         with open(address_book_file_path, "w") as new_file:

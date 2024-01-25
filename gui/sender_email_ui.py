@@ -8,6 +8,8 @@ LIGHT_GRAY_COLOR = "#eeeeee"
 
 class SenderEmail:
     def __init__(self):
+        self.working_dir, self.proj_data_dir = helper.get_working_dir_path()
+
         settings_root_ui = tkinter.Tk()
         settings_root_ui.title("Settings")
         settings_root_ui.minsize(width=300, height=200)
@@ -83,8 +85,7 @@ class SenderEmail:
         Save entered email information to json file - sender_email_data.json.
         :return:
         """
-        working_dir = helper.get_working_dir_path()
-        json_file = os.path.join(working_dir, "../proj_data/sender_email_data.json")
+        json_file = os.path.join(self.proj_data_dir, "sender_email_data.json")
         with open(json_file, "r") as f:
             contents = json.load(f)
             contents["email_from_address"] = self.sender_email_address_entry.get()
@@ -99,8 +100,7 @@ class SenderEmail:
         On Settings window show, read the contents from the json file and populate the entry fields.
         :return:
         """
-        working_dir = helper.get_working_dir_path()
-        json_file = os.path.join(working_dir, "../proj_data/sender_email_data.json")
+        json_file = os.path.join(self.proj_data_dir, "sender_email_data.json")
         with open(json_file, "r") as f:
             contents = json.load(f)
             if contents:
