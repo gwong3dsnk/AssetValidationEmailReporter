@@ -21,7 +21,7 @@ class EmailReport:
     def setup_email_properties(self):
         """
         Set the email properties
-        :return:
+        :return: (bool) if email details are missing.
         """
         working_dir, proj_data_dir = helper.get_working_dir_path()
         json_file = os.path.join(proj_data_dir, "sender_email_data.json")
@@ -29,12 +29,15 @@ class EmailReport:
         # Open and read json file with email settings
         with open(json_file, "r") as email_file:
             email_data = json.load(email_file)
-
-        # Settings
-        self.from_mail = email_data["email_from_address"]
-        self.from_password = email_data["email_from_password"]
-        self.smtp_server = email_data["smtp_server_address"]
-        self.smtp_port = email_data["smtp_server_port"]
+            if (email_data["email_from_address"] == "" or email_data["email_from_password"] == "" or
+                    email_data["smtp_server_address"] == "" or email_data["smtp_server_port"] == ""):
+                return False
+            else:
+                self.from_mail = email_data["email_from_address"]
+                self.from_password = email_data["email_from_password"]
+                self.smtp_server = email_data["smtp_server_address"]
+                self.smtp_port = email_data["smtp_server_port"]
+                return True
 
     def create_email_body(self):
         """

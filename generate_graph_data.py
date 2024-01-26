@@ -100,11 +100,11 @@ class GenerateGraphData:
 
     def generate_asset_report_list(self, df):
         asset_path_data = []
-        report = []
         severity_levels = ["Critical", "High", "Medium"]
         full_line_report = []
 
         for n in range(0, len(severity_levels)):
+            report = []
             reasons = [row["FailReasons"] for index, row in df.iterrows() if row["Severity"] == severity_levels[n]]
             asset_names = [row["AssetName"] for index, row in df.iterrows() if row["Severity"] == severity_levels[n]]
             asset_paths = [row["ObjectPath"] for index, row in df.iterrows() if row["Severity"] == severity_levels[n]]

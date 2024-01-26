@@ -18,6 +18,7 @@ class ReporterUI:
         self.graph_paths_per_csv = []
         self.working_dir, self.proj_data_dir = helper.get_working_dir_path()
         self.full_line_report = []
+        self.existing_presets = ["-- Select Preset --"]
 
         self.root_ui = TkinterDnD.Tk()
         self.root_ui.title("Asset Validation Email Reporter")
@@ -105,15 +106,15 @@ class ReporterUI:
         self.save_new_preset_button = Button(text="Save Preset", command=self.save_new_preset)
         self.save_new_preset_button.grid(column=4, row=3, padx=5)
 
-        self.preset_names = self.get_existing_presets()
         self.selected_preset = tkinter.StringVar()
         self.load_preset_combobox = ttk.Combobox(
-            values=self.preset_names,
+            values=self.existing_presets,
             state="readonly",
             textvariable=self.selected_preset
         )
-        self.load_preset_combobox.current(0)
+        self.load_preset_combobox.set(self.existing_presets[0])
         self.load_preset_combobox.grid(column=5, row=3)
+        self.get_existing_presets()
         self.load_preset_combobox.bind("<<ComboboxSelected>>", self.load_existing_presets)
 
         self.delete_preset_button = Button(text="Delete Preset", command=self.delete_selected_preset)
@@ -287,31 +288,42 @@ class ReporterUI:
 
     def delete_selected_preset(self):
         current_selected_preset = self.load_preset_combobox.get()
-        with open(f"{self.proj_data_dir}/presets.json", "r") as f:
-            contents = json.load(f)
-            for data in contents:
-                if data["preset_name"] == current_selected_preset:
-                    idx = contents.index(data)
-                    del contents[idx]
-        open(f"{self.proj_data_dir}/presets.json", "w").close()
-        with open(f"{self.proj_data_dir}/presets.json", "r+") as f:
-            json.dump(contents, f, indent=4)
 
-        self.clear_csv_listbox()
-        self.recipient_address_listbox.delete(0, END)
+        if current_selected_preset != "-- Select Preset --":
+            with open(f"{self.proj_data_dir}/presets.json", "r") as f:
+                contents = json.load(f)
+                for data in contents:
+                    if data["preset_name"] == current_selected_preset:
+                        idx = contents.index(data)
+                        del contents[idx]
+                        self.existing_presets.remove(current_selected_preset)
+                        self.load_preset_combobox.config(values=self.existing_presets)
+                        self.load_preset_combobox.set("-- Select Preset --")
+            open(f"{self.proj_data_dir}/presets.json", "w").close()
+            with open(f"{self.proj_data_dir}/presets.json", "r+") as f:
+                json.dump(contents, f, indent=4)
+
+            self.clear_csv_listbox()
+            self.recipient_address_listbox.delete(0, END)
 
     def get_existing_presets(self):
         """
         Read the previously saved presets from the presets.json, get the preset names, refresh the preset combobox
         :return:
         """
-        preset_names = []
-        with open(f"{self.proj_data_dir}/presets.json", "r") as f:
-            contents = json.load(f)
-            for data in contents:
-                preset_names.append(data["preset_name"])
-
-        return preset_names
+        try:
+            with open(f"{self.proj_data_dir}/presets.json", "r") as f:
+                contents = json.load(f)
+                for data in contents:
+                    self.existing_presets.append(data["preset_name"])
+            self.refresh_preset_combobox()
+        except json.decoder.JSONDecodeError as e:
+            print("Error encountered while trying to read contents from presets.json file to get_existing_presets().  "
+                  "Likely no existing presets have been found in the presets.json file.  Nothing to load.")
+        except FileNotFoundError:
+            print(f"File not found: f'{self.proj_data_dir}/presets.json'")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
 
     def load_existing_presets(self, event):
         """
@@ -322,21 +334,32 @@ class ReporterUI:
         """
         selected_preset = self.load_preset_combobox.get()
 
-        with open(f"{self.proj_data_dir}/presets.json", "r") as f:
-            contents = json.load(f)
-            self.csv_file_path_list = []
-            for preset_dict in contents:
-                if preset_dict["preset_name"] == selected_preset:
-                    self.date_folder_combobox.set(preset_dict["date_folder"])
-                    self.abs_path_display_label.config(text=preset_dict["date_folder_path"])
-                    self.recipient_address_listbox.delete(0, END)
-                    for address in preset_dict["recipient_addresses"]:
-                        self.recipient_address_listbox.insert(END, address)
-                    self.csv_listbox.delete(0, END)
-                    for csv_path in preset_dict["csv_files"]:
-                        self.csv_file_path_list.append(csv_path)
-                        csv_display_path, file_path_clean = helper.change_to_relative_path(csv_path)
-                        self.csv_listbox.insert(END, csv_display_path)
+        if selected_preset == "-- Select Preset --":
+            self.clear_csv_listbox()
+            self.recipient_address_listbox.delete(0, END)
+        else:
+            try:
+                with open(f"{self.proj_data_dir}/presets.json", "r") as f:
+                    contents = json.load(f)
+                    self.csv_file_path_list = []
+                    for preset_dict in contents:
+                        if preset_dict["preset_name"] == selected_preset:
+                            self.date_folder_combobox.set(preset_dict["date_folder"])
+                            self.abs_path_display_label.config(text=preset_dict["date_folder_path"])
+                            self.recipient_address_listbox.delete(0, END)
+                            for address in preset_dict["recipient_addresses"]:
+                                self.recipient_address_listbox.insert(END, address)
+                            self.csv_listbox.delete(0, END)
+                            for csv_path in preset_dict["csv_files"]:
+                                self.csv_file_path_list.append(csv_path)
+                                csv_display_path, file_path_clean = helper.change_to_relative_path(csv_path)
+                                self.csv_listbox.insert(END, csv_display_path)
+            except json.decoder.JSONDecodeError as e:
+                print("Please select an existing preset.  If none exist, save a new one.")
+            except FileNotFoundError:
+                print(f"File not found: f'{self.proj_data_dir}/presets.json'")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
 
     def save_new_preset(self):
         """
@@ -348,6 +371,7 @@ class ReporterUI:
         preset_name = self.new_preset_name_entry.get()
         date_folder_name = self.date_folder_combobox.get()
         date_abs_path = self.abs_path_display_label.cget("text").replace("\\", "/")
+        save_existing_preset_dicts = []
 
         if preset_name != "" and recipient_contents:
             new_preset_dict = {
@@ -358,27 +382,37 @@ class ReporterUI:
                 "csv_files": self.csv_file_path_list
             }
 
-            with open(f"{self.proj_data_dir}/presets.json", "r+") as f:
-                content = json.load(f)
-                existing_content = content
+            try:
+                with open(f"{self.proj_data_dir}/presets.json", "r+") as f:
+                    content = json.load(f)
+                    save_existing_preset_dicts = content
+            except json.decoder.JSONDecodeError as e:
+                print(f"Error decoding JSON: {e}")
+            except FileNotFoundError:
+                print(f"File not found: f'{self.proj_data_dir}/presets.json'")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+
             open(f"{self.proj_data_dir}/presets.json", "w").close()
             with open(f"{self.proj_data_dir}/presets.json", "r+") as f:
-                existing_content.append(new_preset_dict)
-                json.dump(existing_content, f, indent=4)
+                save_existing_preset_dicts.append(new_preset_dict)
+                self.existing_presets.append(new_preset_dict["preset_name"])
+                json.dump(save_existing_preset_dicts, f, indent=4)
                 f.write("\n")
 
             self.new_preset_name_entry.delete(0, END)
 
             # Repopulate values in the preset combo box
-            self.preset_names = self.get_existing_presets()
-            self.load_preset_combobox.delete(0, END)
-            self.load_preset_combobox.config(values=self.preset_names)
-            newly_created_preset = self.preset_names[len(self.preset_names) - 1]
+            self.refresh_preset_combobox()
+            newly_created_preset = self.existing_presets[len(self.existing_presets) - 1]
             self.load_preset_combobox.set(newly_created_preset)
-
         else:
             print("Failed to save new preset.  Check to make sure you have entered a new preset name in the textfield,"
                   "and that you have added email addresses to the recipient listbox.")
+
+    def refresh_preset_combobox(self):
+        self.load_preset_combobox.delete(0, END)
+        self.load_preset_combobox.config(values=self.existing_presets)
 
     def remove_from_address_book(self, event):
         """
@@ -438,7 +472,7 @@ class ReporterUI:
             emails = f.readlines()
             emails.sort()
             if not emails:
-                print("No existing emails found.  Please add new ones.")
+                print("WARNING: No existing recipient emails found in the address book.  Be sure to add some.")
             else:
                 for address in emails:
                     self.address_book_listbox.insert(END, address)
@@ -642,9 +676,14 @@ class ReporterUI:
                 for csv_paths_list in self.graph_paths_per_csv:
                     er = email_report.EmailReport(csv_paths_list, self.csv_file_path, recipient,
                                                   self.full_line_report)
-                    er.setup_email_properties()
-                    email = er.create_email_body()
-                    er.finalize_send_email(email)
+                    is_email_valid = er.setup_email_properties()
+                    if is_email_valid:
+                        email = er.create_email_body()
+                        er.finalize_send_email(email)
+                    else:
+                        print("Sender email information is incomplete.  Please go into the Edit -> Settings "
+                              "menu and input the details.")
+                        break
         else:
             print("Can't send the email report.  User must add csv files in Step 1 and add email addresses to the "
                   "recipient listbox in Step 2.")

@@ -50,9 +50,9 @@ def get_graph_path(path):
 
 def get_working_dir_path():
     user_home_dir = os.path.expanduser('~')
-    working_dir = os.path.join(user_home_dir, "Desktop\GabeWong-UbisoftTest\TechnicalTest\csv_source_files")
+    working_dir = os.path.join(user_home_dir, "Desktop/GabeWong-UbisoftTest/TechnicalTest/csv_source_files")
     working_dir.replace("\\", "/")
-    proj_data_dir = os.path.join(user_home_dir, "Desktop\GabeWong-UbisoftTest\TechnicalTest\proj_data")
+    proj_data_dir = os.path.join(user_home_dir, "Desktop/GabeWong-UbisoftTest/TechnicalTest/proj_data")
     proj_data_dir.replace("\\", "/")
 
     return working_dir, proj_data_dir
@@ -67,49 +67,37 @@ def change_to_relative_path(path):
     return relative_path, file_path_clean
 
 
-def verify_data_directory_and_files():
+def verify_data_directory():
     # Verify data folder exists
     working_dir, proj_data_dir = get_working_dir_path()
     directory_exists(proj_data_dir)
+    return proj_data_dir
 
-    # Verify data files exist
-    files_to_check = ["address_book.txt", "presets.json", "sender_email_data.json"]
 
-    proj_data_contents = os.listdir(proj_data_dir)
-    address_book_file_path = os.path.join(proj_data_dir, files_to_check[0])
-    presets_file_path = os.path.join(proj_data_dir, files_to_check[1])
-    sender_email_data_path = os.path.join(proj_data_dir, files_to_check[2])
+def verify_data_files(proj_data_dir):
+    address_book_file_path = os.path.join(proj_data_dir, "address_book.txt")
+    presets_file_path = os.path.join(proj_data_dir, "presets.json")
+    sender_email_data_path = os.path.join(proj_data_dir, "sender_email_data.json")
 
-    if files_to_check[0] not in proj_data_contents:
+    new_email_dict = {
+        "email_from_address": "",
+        "email_from_password": "",
+        "smtp_server_address": "",
+        "smtp_server_port": ""
+    }
+
+    # If address book file doesn't exist, create it and leave it empty.
+    if not os.path.isfile(address_book_file_path):
         with open(address_book_file_path, "w") as new_file:
             new_file.write("")
 
-    if files_to_check[1] not in proj_data_contents:
+    # If presets file doesn't exist (or if it does and is empty), create it and populate it with template data.
+    if not os.path.isfile(presets_file_path):
         with open(presets_file_path, "w") as new_file:
-            with open("saved/template_data.json", "r") as template_data:
-                contents = json.load(template_data)
-                json.dump(contents, new_file, indent=4)
-    else:
-        template_exists = True
-        existing_preset_data = []
-
-        # File exists.  Check for init_data key if it exists in the contents first index
-        with open(presets_file_path, "r") as file:
-            contents = json.load(file)
-            if "init_data" not in contents[0]:
-                template_exists = False
-                existing_preset_data = contents
-
-        # Template data not found at index 0.  Clear the file, add the template data to index 0 and write back to
-        # the json file with existing content.
-        if not template_exists:
-            open(presets_file_path, "w").close()
-            with open(presets_file_path, "w") as file:
-                with open("saved/template_data.json", "r") as template_data:
-                    td_contents = json.load(template_data)
-                    existing_preset_data.insert(0, td_contents[0])
-                    json.dump(contents, file, indent=4)
-
-    if files_to_check[2] not in proj_data_contents:
-        with open(sender_email_data_path, "w") as new_file:
             new_file.write("")
+
+    if not os.path.isfile(sender_email_data_path):
+        with open(sender_email_data_path, "w") as new_file:
+            json.dump(new_email_dict, new_file)
+        print("ERROR: No sender email information found.  Email report will not be sent.  Please enter sender email"
+              "data in the Edit Menu -> Settings and save it.")
