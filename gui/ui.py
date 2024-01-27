@@ -641,6 +641,7 @@ class ReporterUI:
         self.csv_file_path_list = []
         self.date_folder_combobox.current(0)
         self.abs_path_display_label.config(text="Path Displayed Here")
+        self.load_preset_combobox.set("-- Select Preset --")
 
     def send_csv_to_generate_data(self):
         """

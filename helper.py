@@ -113,6 +113,6 @@ def verify_data_files(proj_data_dir):
 
     if not os.path.isfile(sender_email_data_path):
         with open(sender_email_data_path, "w") as new_file:
-            json.dump(new_email_dict, new_file)
+            json.dump(new_email_dict, new_file, indent=4)
         print("ERROR: No sender email information found.  Email report will not be sent.  Please enter sender email"
               "data in the Edit Menu -> Settings and save it.")
