@@ -1,6 +1,9 @@
 import os, json
 from datetime import date
 
+CSV_SOURCE_DIR = "Desktop/GabeWong-UbisoftTest/TechnicalTest/csv_source_files"
+PROJ_DATA_DIR = "Desktop/GabeWong-UbisoftTest/TechnicalTest/proj_data"
+
 
 def directory_exists(dir_path):
     """
@@ -50,9 +53,10 @@ def get_graph_path(path):
 
 def get_working_dir_path():
     user_home_dir = os.path.expanduser('~')
-    working_dir = os.path.join(user_home_dir, "Desktop/GabeWong-UbisoftTest/TechnicalTest/csv_source_files")
+    insert_path_token = check_for_onedrive()
+    working_dir = os.path.join(user_home_dir, insert_path_token, CSV_SOURCE_DIR)
     working_dir.replace("\\", "/")
-    proj_data_dir = os.path.join(user_home_dir, "Desktop/GabeWong-UbisoftTest/TechnicalTest/proj_data")
+    proj_data_dir = os.path.join(user_home_dir, insert_path_token, PROJ_DATA_DIR)
     proj_data_dir.replace("\\", "/")
 
     return working_dir, proj_data_dir
@@ -70,8 +74,19 @@ def change_to_relative_path(path):
 def verify_data_directory():
     # Verify data folder exists
     working_dir, proj_data_dir = get_working_dir_path()
+    directory_exists(working_dir)
     directory_exists(proj_data_dir)
     return proj_data_dir
+
+
+def check_for_onedrive():
+    current_wd = os.getcwd()
+    if "OneDrive" in current_wd:
+        insert_path_token = "OneDrive"
+    else:
+        insert_path_token = ""
+
+    return insert_path_token
 
 
 def verify_data_files(proj_data_dir):
