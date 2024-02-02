@@ -1,5 +1,5 @@
-# AssetValidationEmailReporter
-A Python tool that takes in csv files, parses through them, generates visual graphs, and sends the graphs via email to recipients.  
+# Purpose
+This code is purely for practice with matplotlib, tkinter, EmailMessage, json and pandas
 
 # Intended Use
 The Asset Validation Email Reporter is intended to intake csv files containing 3d game asset data.  In a spreadsheet (Excel, Google etc), data could included asset triangle count, the company triangle budget, how many LODs the asset has, what the LOD budget is, and so on.  It will parse the csv data and generate visual graph reports.  These reports are intended to be sent to anyone in a company who is interested in the overall health of the art asset library and the game project.  Intended viewers are those in art, tech art, and engineers.  The user of the tool can insert email addresses and send an email report to the intended recipients.
